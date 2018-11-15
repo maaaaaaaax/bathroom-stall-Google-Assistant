@@ -23,12 +23,17 @@ const db = admin.firestore();
 
 // Handle the Actions on Google intent, Default Welcome Intent
 app.intent('Default Welcome Intent', (conv) => {
-    
+    conv.ask("Welcome to Bathroom Stall! You can hear a message from the last visitor, then leave a reply. Content may not be suitable for minors. Would you like to hear what's on the wall?");
+});
+
+// Handle the Actions on Google intent, Default Welcome Intent
+app.intent('Default Welcome Intent - yes', (conv) => {
+
     // Get the database collection 'dialogflow' and document 'agent'
     function readFromDb(){
-        
+
         const dialogflowAgentDoc = db.collection('dialogflow').doc('agent');
-    
+
         // Get the value of 'entry' in the document and send it to the user
         return dialogflowAgentDoc.get()
           .then(doc => {
@@ -36,16 +41,21 @@ app.intent('Default Welcome Intent', (conv) => {
               console.log('No data found in the database!');
             } else {
               console.log(doc.data().entry);
-              conv.ask("Welcome to Bathroom Stall! You can hear a message from the last visitor, then leave a reply. The wall says: \n\n" + doc.data().entry);
+              conv.ask("The wall says: \n\n" + doc.data().entry);
             }
             conv.ask("What's your reply?");
             return Promise.resolve('Read complete');
           }).catch(() => {
             console.log('Error reading entry from the Firestore database.');
-          });        
+          });
     }
-    
+
     return readFromDb();
+});
+
+// Handle the Actions on Google intent, Default Welcome Intent - no
+app.intent('Default Welcome Intent - no', (conv) => {
+    conv.ask("Ok. What should the wall to say?");
 });
 
 // Handle anything after the Welcome intent by storing that user's phrase in the GCP Cloud Firestore NoSQL Db
@@ -53,27 +63,28 @@ app.intent('write to the wall', (conv) => {
     console.log(conv);
     console.log(conv.input.raw);
     var userReply = conv.input.raw;
-    
+
     // try to use Dialogflow's sample code to rewrite userReply with an entry from the DB.
     function writeToDb(userReply){
-        
+
         const dialogflowAgentRef = db.collection('dialogflow').doc('agent');
-        
+
         return db.runTransaction(t => {
           t.set(dialogflowAgentRef, {entry: userReply});
-          conv.ask('The wall now reads, ' + userReply);
-          conv.close("Thanks for visiting! When you're ready for another exciting action, tell your Assistant, Hey Google, talk to Send Max Five Dollars.");          
+          conv.ask('The wall now reads, ' + userReply + '\n\n');
+          conv.close("Thanks for visiting!");
+          // After releasing Send Max Five Dollars, append this to conv.close: When you're ready for another exciting action, tell your Assistant, Hey Google, talk to Send Max Five Dollars.
           return Promise.resolve('Write complete');
         }).then(doc => {
           console.log(`Wrote "${userReply}" to the Firestore database.`);
         }).catch(err => {
           console.log(`Error writing to Firestore: ${err}`);
         //   console.log(`Failed to write "${userReply}" to the Firestore database.`);
-        });        
+        });
     }
-    
+
     return writeToDb(userReply);
-    
+
 });
 
 // Set the DialogflowApp object to handle the HTTPS POST request.
